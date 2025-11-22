@@ -1,6 +1,5 @@
-# Use a Jetson-compatible base image
-# NOTE: Ensure this tag matches your JetPack version (e.g., r36.2.0 for JetPack 6)
-FROM dustynv/l4t-pytorch:r36.2.0
+# Use Python slim base image for ARM64/Jetson compatibility
+FROM python:3.10-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
@@ -8,24 +7,18 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
-COPY colpali-lib-api-jetson/requirements.txt .
+COPY requirements-jetson.txt .
 
-# Install dependencies from standard PyPI
-# Note: PyTorch is already installed in the base image (dustynv/l4t-pytorch)
-# requirements.txt explicitly uses --index-url to ensure packages come from PyPI
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-# Copy the local library from the build context
-COPY colpali-lib/colpali-jetson /tmp/colpali-jetson
-
-# Install the local library
-RUN cd /tmp/colpali-jetson && pip3 install .
+# Install Python dependencies including Jetson PyTorch wheel
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements-jetson.txt
 
 # Copy the application code
-COPY colpali-lib-api-jetson /app
+COPY . /app
 
 EXPOSE 8012
 

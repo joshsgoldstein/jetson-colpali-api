@@ -11,12 +11,8 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-build: ## Build the Docker image (run from parent directory with colpali-lib)
+build: ## Build the Docker image
 	@echo "Building Docker image..."
-	docker build -t $(IMAGE_NAME) -f Dockerfile ..
-
-build-local: ## Build the Docker image from current directory (assumes colpali-lib is accessible)
-	@echo "Building Docker image from current directory..."
 	docker build -t $(IMAGE_NAME) .
 
 run: ## Run the Docker container
