@@ -61,7 +61,10 @@ clean-models: ## Remove downloaded models
 	@echo "Removing models directory..."
 	rm -rf models/
 
-dev-install: ## Install dependencies for local development
+dev-install: ## Install dependencies for local Jetson development
+	pip3 install -r requirements-jetson.txt
+
+dev-install-docker: ## Install dependencies (for non-Jetson or inside Docker)
 	pip3 install -r requirements.txt
 
 dev-run: ## Run the API locally (not in Docker)

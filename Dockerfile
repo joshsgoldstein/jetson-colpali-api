@@ -13,10 +13,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for caching
 COPY colpali-lib-api-jetson/requirements.txt .
 
-# Install dependencies
-# Note: existing torch in base image is usually preferred on Jetson.
-# You might need to comment out the specific torch wheel in requirements.txt
-# if it conflicts with the system PyTorch.
+# Install dependencies from standard PyPI
+# Note: PyTorch is already installed in the base image (dustynv/l4t-pytorch)
+# requirements.txt explicitly uses --index-url to ensure packages come from PyPI
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the local library from the build context
