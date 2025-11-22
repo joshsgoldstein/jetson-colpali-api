@@ -64,7 +64,7 @@ clean-models: ## Remove downloaded models
 dev-install: ## Install dependencies for local development
 	pip3 install -r requirements.txt
 
-dev-run: ## Run the API locally (not in Docker)
+dev: ## Run the API locally (not in Docker)
 	uvicorn app:app --host 0.0.0.0 --port $(PORT) --reload
 
 test-embed: ## Test the /embed endpoint with a sample request
