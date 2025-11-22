@@ -1,0 +1,7 @@
+https://pypi.jetson-ai-lab.io/jp6/cu126/+f/62a/1beee9f2f1470/torch-2.8.0-cp310-cp310-linux_aarch64.whl#sha256=62a1beee9f2f147076a974d2942c90060c12771c94740830327cae705b2595fc
+transformers>=4.53.1,<4.54.0
+fastapi
+uvicorn
+pillow
+numpy<2.0.0
+accelerate
