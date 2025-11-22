@@ -15,6 +15,14 @@ build: ## Build the Docker image
 	@echo "Building Docker image..."
 	docker build -t $(IMAGE_NAME) .
 
+build-progress: ## Build with progress output (useful for debugging timeouts)
+	@echo "Building Docker image with progress output..."
+	docker build --progress=plain -t $(IMAGE_NAME) .
+
+build-no-cache: ## Build without cache (fresh build)
+	@echo "Building Docker image without cache..."
+	docker build --no-cache -t $(IMAGE_NAME) .
+
 run: ## Run the Docker container
 	@echo "Starting container..."
 	docker run -d \
