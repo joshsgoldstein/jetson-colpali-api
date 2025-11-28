@@ -1,7 +1,9 @@
 .PHONY: help build run stop clean logs shell download-model
 
-# Docker image name
+# Docker image name and version
+VERSION := latest
 IMAGE_NAME := joshsgoldstein/jetson-colpali-api
+IMAGE_TAG := $(IMAGE_NAME):$(VERSION)
 CONTAINER_NAME := jetson-colpali-api
 PORT := 8012
 
@@ -12,29 +14,29 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build the Docker image (run from parent directory with colpali-lib)
-	@echo "Building Docker image..."
-	docker build -t $(IMAGE_NAME) -f Dockerfile ..
+	@echo "Building Docker image $(IMAGE_TAG)..."
+	docker build -t $(IMAGE_TAG) -f Dockerfile ..
 
 build-local: ## Build the Docker image from current directory (assumes colpali-lib is accessible)
-	@echo "Building Docker image from current directory..."
-	docker build -t $(IMAGE_NAME) .
+	@echo "Building Docker image $(IMAGE_TAG)..."
+	docker build -t $(IMAGE_TAG) .
 
-run: ## Run the Docker container
+run-background: ## Run the Docker container
 	@echo "Starting container..."
 	docker run -d \
 		--name $(CONTAINER_NAME) \
 		--runtime nvidia \
 		-p $(PORT):$(PORT) \
 		-v $(PWD)/models:/app/models \
-		$(IMAGE_NAME)
+		$(IMAGE_TAG)
 	@echo "Container started. API available at http://localhost:$(PORT)"
 
-run-interactive: ## Run the Docker container in interactive mode
+run: ## Run the Docker container in interactive mode
 	docker run -it --rm \
 		--runtime nvidia \
 		-p $(PORT):$(PORT) \
 		-v $(PWD)/models:/app/models \
-		$(IMAGE_NAME) /bin/bash
+		$(IMAGE_TAG)
 
 stop: ## Stop the running container
 	@echo "Stopping container..."
@@ -55,7 +57,7 @@ clean: ## Remove containers and images
 	@echo "Cleaning up..."
 	docker stop $(CONTAINER_NAME) 2>/dev/null || true
 	docker rm $(CONTAINER_NAME) 2>/dev/null || true
-	docker rmi $(IMAGE_NAME) 2>/dev/null || true
+	docker rmi $(IMAGE_TAG) 2>/dev/null || true
 
 clean-models: ## Remove downloaded models
 	@echo "Removing models directory..."

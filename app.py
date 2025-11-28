@@ -16,7 +16,7 @@ from colpali import ColPaliModel
 from dotenv import load_dotenv
 load_dotenv()
 
-HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
+# HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 
 # # --- Logger ---
 logging.basicConfig(level=logging.INFO)
@@ -116,8 +116,9 @@ async def embed(
     if file is None and text is None:
         raise HTTPException(status_code=400, detail="Provide at least one of 'file' or 'text'.")
 
-    embeddings = []
-    
+    data = []
+    index = 0
+
     # 1. Handle Image
     if file is not None:
         log.info(f"Received file: {file.filename}")
@@ -128,25 +129,46 @@ async def embed(
         # run_inference_images expects a list and returns a list of results
         emb_batch = model.multi_vectorize_image(img)
         
-        # Since we sent 1 image, we take the first result (which is a list of vectors)
-        # We can just append to our results list
-        embeddings.extend(emb_batch)
+        # Since we sent 1 image, we capture its multi-vector embedding
+        if hasattr(emb_batch, "detach"):
+            emb_batch = emb_batch.detach()
+        if hasattr(emb_batch, "cpu"):
+            emb_batch = emb_batch.cpu()
+        image_embedding = emb_batch.tolist() if hasattr(emb_batch, "tolist") else emb_batch
+
+        data.append(
+            {
+                "object": "embedding",
+                "index": index,
+                "type": "image",
+                "file_name": file.filename,
+                "embedding": image_embedding,
+            }
+        )
+        index += 1
 
     # 2. Handle Text
     if text is not None:
         log.info(f"Received text query (len={len(text)})")
         
         # Generate embedding for text
-        embedding = model.get_query_embedding(text).tolist()
-        print(embedding)
+        text_embedding = model.get_query_embedding(text)
+        text_embedding = text_embedding.tolist() if hasattr(text_embedding, "tolist") else text_embedding
+        print(len(text_embedding))
+
+        data.append(
+            {
+                "object": "embedding",
+                "index": index,
+                "type": "text",
+                "embedding": text_embedding,
+            }
+        )
+        index += 1
     
     return {
         "object": "list",
-        "data": {
-            "object": "embedding",
-            "index": 0,
-            "embedding": embedding,
-        },
+        "data": data,
         "model": model.model_id,
     }
 
@@ -157,35 +179,39 @@ async def embed(
 # ================================
 @app.post("/embed_batch")
 async def embed_batch(files: List[UploadFile] = File(...)):
-    imgs = []
-    names = []
+    data = []
 
-    for f in files:
-        names.append(f.filename)
+    for idx, f in enumerate(files):
         img_bytes = await f.read()
-        imgs.append(Image.open(BytesIO(img_bytes)).convert("RGB"))
+        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+        emb_batch = model.multi_vectorize_image(img)
 
-    # Use the helper function for images
-    embeddings = run_inference_images(imgs)
+        if hasattr(emb_batch, "detach"):
+            emb_batch = emb_batch.detach()
+        if hasattr(emb_batch, "cpu"):
+            emb_batch = emb_batch.cpu()
+        image_embedding = emb_batch.tolist() if hasattr(emb_batch, "tolist") else emb_batch
 
-    if embeddings:
-        num_vecs = len(embeddings[0])
-        dim = len(embeddings[0][0]) if num_vecs > 0 else 0
+        data.append(
+            {
+                "object": "embedding",
+                "index": idx,
+                "file_name": f.filename,
+                "type": "image",
+                "embedding": image_embedding,
+            }
+        )
+
+    if data:
+        num_vecs = len(data[0]["embedding"])
+        dim = len(data[0]["embedding"][0]) if num_vecs > 0 else 0
         log.info(
-            f"Batch embeddings generated (batch={len(embeddings)}, "
+            f"Batch embeddings generated (batch={len(data)}, "
             f"num_vectors_per_item={num_vecs}, dim={dim})"
         )
 
     return {
         "object": "list",
-        "data": [
-            {
-                "object": "embedding",
-                "index": i,
-                "file_name": names[i],
-                "embedding": embeddings[i], 
-            }
-            for i in range(len(embeddings))
-        ],
-        "model": model_id,
+        "data": data,
+        "model": model.model_id,
     }

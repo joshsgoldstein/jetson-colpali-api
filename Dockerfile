@@ -1,32 +1,32 @@
 # Use a Jetson-compatible base image
 # NOTE: Ensure this tag matches your JetPack version (e.g., r36.2.0 for JetPack 6)
-FROM dustynv/l4t-pytorch:r36.2.0
+FROM nvcr.io/nvidia/l4t-jetpack:r36.4.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies INCLUDING Python and numeric libs
 RUN apt-get update && apt-get install -y \
     git \
+    python3 \
+    python3-pip \
+    libopenblas-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
-COPY colpali-lib-api-jetson/requirements.txt .
-
-# Install dependencies
-# Note: existing torch in base image is usually preferred on Jetson.
-# You might need to comment out the specific torch wheel in requirements.txt
-# if it conflicts with the system PyTorch.
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-# Copy the local library from the build context
+# Copy and install the colpali library FIRST
 COPY colpali-lib/colpali-jetson /tmp/colpali-jetson
-
-# Install the local library
 RUN cd /tmp/colpali-jetson && pip3 install .
 
+# Copy requirements SECOND (this will downgrade numpy to <2.0.0)
+COPY colpali-lib-api-jetson/requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 # Copy the application code
-COPY colpali-lib-api-jetson /app
+COPY colpali-lib-api-jetson/app.py /app/app.py
+COPY colpali-lib-api-jetson/colpali.py /app/colpali.py
+COPY colpali-lib-api-jetson/models /app/models
+
 
 EXPOSE 8012
 

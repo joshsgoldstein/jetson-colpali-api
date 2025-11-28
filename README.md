@@ -1,4 +1,4 @@
-# basic-colpali-api
+# FastAPI for the Colpali Library on NVIDIA Jetson Jetpack 6
 
 
 Step 1: Clone the Colpali Library Repo
