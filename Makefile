@@ -67,7 +67,7 @@ dev-install: ## Install dependencies for local development
 	pip3 install -r requirements.txt
 
 dev: ## Run the API locally (not in Docker)
-	uvicorn app:app --host 0.0.0.0 --port $(PORT) --reload
+	uvicorn app:app --host 0.0.0.0 --port $(PORT) --reload --reload-exclude "venv/*" --reload-exclude "__pycache__/*"
 
 test-embed: ## Test the /embed endpoint with a sample request
 	@echo "Testing /embed endpoint..."

@@ -104,6 +104,8 @@ model = ColPaliModel()
 
 app = FastAPI()
 
+# ... (imports and model setup remain the same)
+
 # ================================
 #   FLEXIBLE (TEXT / IMAGE / BOTH)
 #   MULTI-VECTOR OUTPUT
@@ -117,7 +119,8 @@ async def embed(
         raise HTTPException(status_code=400, detail="Provide at least one of 'file' or 'text'.")
 
     data = []
-    index = 0
+    embedding = None
+    prompt_tokens = 0
 
     # 1. Handle Image
     if file is not None:
@@ -125,51 +128,39 @@ async def embed(
         img_bytes = await file.read()
         img = Image.open(BytesIO(img_bytes)).convert("RGB")
         
-        # Generate embedding for image
-        # run_inference_images expects a list and returns a list of results
         emb_batch = model.multi_vectorize_image(img)
         
-        # Since we sent 1 image, we capture its multi-vector embedding
         if hasattr(emb_batch, "detach"):
             emb_batch = emb_batch.detach()
         if hasattr(emb_batch, "cpu"):
             emb_batch = emb_batch.cpu()
-        image_embedding = emb_batch.tolist() if hasattr(emb_batch, "tolist") else emb_batch
+        embedding = emb_batch.tolist() if hasattr(emb_batch, "tolist") else emb_batch
+        prompt_tokens += 1 # Rough proxy for usage
 
-        data.append(
-            {
-                "object": "embedding",
-                "index": index,
-                "type": "image",
-                "file_name": file.filename,
-                "embedding": image_embedding,
-            }
-        )
-        index += 1
-
-    # 2. Handle Text
+    # 2. Handle Text (overrides image if both provided, or use text alone)
+    # Note: If you want BOTH in one response, we'd need to change this logic slightly.
+    # Currently this prioritizes text if both are sent, or just overwrites the variable.
     if text is not None:
         log.info(f"Received text query (len={len(text)})")
-        
-        # Generate embedding for text
-        text_embedding = model.get_query_embedding(text)
-        text_embedding = text_embedding.tolist() if hasattr(text_embedding, "tolist") else text_embedding
-        print(len(text_embedding))
+        embedding = model.get_query_embedding(text)
+        embedding = embedding.tolist() if hasattr(embedding, "tolist") else embedding
+        prompt_tokens += len(text.split())
 
-        data.append(
-            {
-                "object": "embedding",
-                "index": index,
-                "type": "text",
-                "embedding": text_embedding,
-            }
-        )
-        index += 1
+    if embedding is not None:
+        data.append({
+            "object": "embedding",
+            "index": 0,
+            "embedding": embedding,
+        })
     
     return {
         "object": "list",
         "data": data,
         "model": model.model_id,
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "total_tokens": prompt_tokens,
+        },
     }
 
 
@@ -196,8 +187,7 @@ async def embed_batch(files: List[UploadFile] = File(...)):
             {
                 "object": "embedding",
                 "index": idx,
-                "file_name": f.filename,
-                "type": "image",
+                # Removed "file_name" and "type" for OpenAI compatibility
                 "embedding": image_embedding,
             }
         )
@@ -214,4 +204,8 @@ async def embed_batch(files: List[UploadFile] = File(...)):
         "object": "list",
         "data": data,
         "model": model.model_id,
+        "usage": {
+            "prompt_tokens": len(data),
+            "total_tokens": len(data),
+        },
     }
